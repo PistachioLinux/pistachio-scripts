@@ -1,0 +1,315 @@
+#!/bin/bash
+
+# Pistachio Linux's Distrobox management script
+# Licensed under GPLv3
+VERSION="1.0.0"
+
+# help functions for pistachio-manager
+
+ShowHelp() 
+{
+    echo "pistachio-manager allows you to manage Distrobox containers in Pistachio Linux."
+    echo
+    echo "Usage: pistachio-manager [command]"
+    echo "install - Install a package in a container."
+    echo "create - create a Distrobox container with Pistachio Linux compatibility."
+    echo "enter - enter a Distrobox container."
+    echo "remove - remove a Distrobox container."
+    echo "uninstall - uninstall a package from a container."
+    echo "version - show the version of pistachio-manager."
+}
+
+ShowInstallHelp() 
+{
+    echo "pistachio-manager install allows you install a package inside of a Distrobox container."
+    echo
+    echo "Usage: pistachio-manager install [container] [package]"
+    echo "container - The name of the container to install the package in."
+    echo "package - The name of the package to install."
+}
+
+ShowUninstallHelp() 
+{
+    echo "pistachio-manager uninstall allows you to uninstall a package from a Distrobox container."
+    echo
+    echo "Usage: pistachio-manager uninstall [container] [package]"
+    echo "container - The name of the container to uninstall the package from."
+    echo "package - The name of the package to uninstall."
+}
+
+ShowCreateHelp() 
+{
+    echo "pistachio-manager create allows you to create a Distrobox container with Pistachio Linux compatibility."
+    echo
+    echo "Usage: pistachio-manager create [distro]"
+    echo "distro - The name of the container to create. Valid options are \"arch\", \"debian\" and \"fedora\"."
+    echo "You can also not supply a distro name to pick one with an interactive menu."
+}
+
+ShowRemoveHelp() 
+{
+    echo "pistachio-manager remove allows you to remove a Distrobox container."
+    echo
+    echo "Usage: pistachio-manager remove [container]"
+    echo "container - The name of the container to remove."
+}
+
+CreateContainer() 
+{
+        param=$1
+        if ! command -v distrobox &> /dev/null; then
+            echo "distrobox is not installed. Please report this issue on GitHub."
+        fi
+        if ! command -v podman &> /dev/null; then
+            echo "podman is not installed. Please report this issue on GitHub."
+        fi
+
+        if [ $param = "arch" ]
+        then
+            if [ $(podman ps -a | grep $param | wc -l) -eq 0 ]
+            then
+                echo "Creating container $param..."
+                distrobox create $param
+                echo "Container $param created."
+            else
+                echo "Container $param already exists."
+            fi
+        fi
+
+        if [ $param = "debian" ]
+        then
+            if [ $(podman ps -a | grep $param | wc -l) -eq 0 ]
+            then
+                echo "Creating container $param..."
+                distrobox create debian --image debian:stable
+                echo "Container $param created."
+            else
+                echo "Container $param already exists."
+            fi
+        fi
+
+        if [ $param = "fedora" ]
+        then
+            if [ $(podman ps -a | grep $param | wc -l) -eq 0 ]
+            then
+                echo "Creating container $param..."
+                distrobox create $param
+                echo "Container $param created."
+            else
+                echo "Container $param already exists."
+            fi
+        fi
+
+        if [ $param = "pistachiolinux" -o $param = "pistachio-linux" ]
+        then
+            echo "You cannot create a container for Pistachio Linux."
+            exit 1
+        fi
+
+        if [ $param != "arch" -a $param != "debian" -a $param != "fedora" -a $param != "pistachiolinux" -a $param != "pistachio-linux" ]
+        then
+            echo "Invalid distro. Valid options are \"arch\", \"debian\" and \"fedora\"."
+            exit 1
+        fi
+}
+
+if [[ "$EUID" = 0 ]]; then
+    echo "Do not run pistachio-manager as root!"
+    exit 1
+fi
+
+# pistachio-manager 
+if [ $# -eq 0 ]
+then
+    ShowHelp
+fi
+
+# pistachio-manager install
+if [ "$1" = "install" ]
+then
+    if [ $# -eq 1 ]
+    then
+        ShowInstallHelp
+    fi
+    if [ $# -eq 2 ]
+    then
+        echo "Not enough arguments."
+        ShowInstallHelp
+    fi
+    if [ $# -eq 3 ]
+    then
+        if ! command -v distrobox &> /dev/null; then
+            echo "distrobox is not installed. Please report this issue on GitHub."
+        fi
+        if ! command -v podman &> /dev/null; then
+            echo "podman is not installed. Please report this issue on GitHub."
+        fi
+        if [ $2 = "pistachiolinux" || $2 = "pistachio-linux" ]
+        then
+            echo "If you want to install a package in Pistachio Linux, run \"sudo apt install $3\"."
+            exit 1
+        fi
+        echo "Installing $3 in $2..."
+        # check if container exists using podman
+        if [ $(podman ps -a | grep $2 | wc -l) -eq 0 ]
+        then
+            echo "Container $2 does not exist. Try creating it!"
+            exit 1
+        else
+            # container exists, install package
+            if [ $2 = "arch" ]
+            then
+                if ! podman exec -it $2 pacman;
+                then
+                    echo "Container $2 is not running. Starting it..."
+                    podman start $2
+                    sleep 1
+                fi
+                podman exec -it $2 pacman -S $3
+            fi
+            if [ $2 = "debian" ]
+            then
+                if ! podman exec -it $2 apt;
+                then
+                    echo "Container $2 is not running. Starting it..."
+                    podman start $2
+                    sleep 1
+                fi
+                podman exec $2 apt install -y $3
+            fi
+            if [ $2 = "fedora" ]
+            then
+                if ! podman exec -it $2 dnf;
+                then
+                    echo "Container $2 is not running. Starting it..."
+                    podman start $2
+                    sleep 1
+                fi
+                podman exec $2 dnf install -y $3
+            fi
+            echo "Could not figure out which package manager to use for \"$2\". You will have to install $3 in $2 manually."
+            exit 1
+        fi
+    fi
+fi
+
+# pistachio-manager create
+if [ "$1" = "create" ]
+then
+    if [ $# -eq 1 ]
+    then
+        # open a whiptail dialog to ask which distro to create
+        distro=$(whiptail --backtitle "Pistachio Manager" --title "Create a container" --menu "Choose which Linux distribution this container will use:" 15 60 4 \
+        "arch" "Arch Linux" \
+        "debian" "Debian" \
+        "fedora" "Fedora" 3>&1 1>&2 2>&3)
+
+        # check if the user pressed cancel
+        if [ $? -eq 1 ]
+        then
+            exit 1
+        fi
+
+        # check if the user pressed enter
+        if [ $? -eq 0 ]
+        then
+            echo $distro
+            CreateContainer $distro
+        fi
+    fi
+    if [ $# -eq 2 ]
+    then
+        echo $2
+        CreateContainer $2
+    fi
+fi
+
+# pistachio-manager remove
+if [ "$1" = "remove" ]
+then
+    if [ $# -eq 1 ]
+    then
+        ShowRemoveHelp
+    fi
+    if [ $# -eq 2 ]
+    then
+        if [ $2 = "pistachiolinux" -o $2 = "pistachio-linux" ]
+        then
+            echo "You cannot remove Pistachio Linux."
+            exit 1
+        fi
+        if [ $(podman ps -a | grep $2 | wc -l) -eq 0 ]
+        then
+            echo "Container $2 does not exist."
+            exit 1
+        else
+            echo "Removing container $2..."
+            podman rm -f $2
+            echo "Container $2 removed."
+        fi
+    fi
+fi
+
+# pistachio-manager uninstall
+if [ "$1" = "uninstall" ]
+then
+    if [ $# -eq 1 ]
+    then
+        ShowUninstallHelp
+    fi
+    if [ $# -eq 2 ]
+    then
+        if [ $2 = "pistachiolinux" -o $2 = "pistachio-linux" ]
+        then
+            echo "You cannot uninstall Pistachio Linux."
+            exit 1
+        fi
+        if [ $(podman ps -a | grep $2 | wc -l) -eq 0 ]
+        then
+            echo "Container $2 does not exist."
+            exit 1
+        else
+            echo "Uninstalling container $2..."
+            podman rm $2
+            echo "Container $2 uninstalled."
+        fi
+    fi
+fi
+
+# pistachio-manager help
+if [ "$1" = "help" ]
+then
+    if [ $# -eq 1 ]
+    then
+        ShowHelp
+    fi
+    if [ $# -eq 2 ]
+    then
+        if [ $2 = "install" ]
+        then
+            ShowInstallHelp
+        fi
+        if [ $2 = "create" ]
+        then
+            ShowCreateHelp
+        fi
+        if [ $2 = "enter" ]
+        then
+            ShowEnterHelp
+        fi
+    fi
+fi
+
+# pistachio-manager version
+if [ "$1" = "version" ]
+then
+    echo "pistachio-manager version $VERSION"
+    exit 0
+fi
+
+# if command is not recognized
+if [ "$1" != "install" ] && [ "$1" != "create" ] && [ "$1" != "enter" ] && [ "$1" != "help" ] && [ "$1" != "" ] && [ "$1" != "remove" ] && [ "$1" != "uninstall" ] && [ "$1" != "version" ]
+then
+    echo "Command \"$1\" is not a pistachio-manager command."
+    ShowHelp
+fi
