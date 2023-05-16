@@ -1,0 +1,66 @@
+#!/bin/bash
+
+# Pistachio Linux's update script
+# Licenced under GPLv3
+VERSION="1.0.0"
+
+# Help function
+
+ShowHelp() 
+{
+    echo "pistachio-update allows you to update all components of Pistachio Linux."
+    echo ""
+    echo "Usage: pistachio-update"
+}
+
+if [ "$1" == "--help" ]; then
+    ShowHelp
+    exit 0
+fi
+
+# Check if the script is being run as root
+if [ "$EUID" -ne 0 ]; then
+    echo "Please run this script as root. (sudo pistachio-update)"
+    exit 1
+fi
+
+echo "Checking pistachio-manager version"
+
+# Check if pistachio-manager is installed
+if [ ! -f /usr/bin/pistachio-manager ]; then
+    echo "Something's wrong. pistachio-manager is not installed. Please install it first."
+    exit 1
+fi
+
+# Get latest version of latest version of pistachio-manager
+LATEST_VERSION=$(curl -s https://raw.githubusercontent.com/PistachioLinux/pistachio-scripts/master/pistachio-manager) | grep "VERSION=" | cut -d "=" -f 2
+
+. /usr/bin/pistachio-manager
+
+# Check if the latest version is installed
+
+if [ "$LATEST_VERSION" == "$VERSION" ]; then
+    echo "pistachio-manager is up to date."
+    exit 0
+else
+    echo "pistachio-manager is not up to date. Updating..."
+    curl -s https://raw.githubusercontent.com/PistachioLinux/pistachio-scripts/master/pistachio-manager > /usr/bin/pistachio-manager
+    echo "pistachio-manager updated."
+    exit 0
+fi
+
+# Check if the latest version is installed
+
+LATEST_UPDATE_VERSION=$(curl -s https://raw.githubusercontent.com/PistachioLinux/pistachio-scripts/master/pistachio-update) | grep "VERSION=" | cut -d "=" -f 2
+
+. /usr/bin/pistachio-update
+
+if [ "$LATEST_UPDATE_VERSION" == "$VERSION" ]; then
+    echo "pistachio-update is up to date."
+    exit 0
+else
+    echo "pistachio-update is not up to date. Updating..."
+    curl -s https://raw.githubusercontent.com/PistachioLinux/pistachio-scripts/master/pistachio-update > /usr/bin/pistachio-update
+    echo "pistachio-update updated."
+    exit 0
+fi

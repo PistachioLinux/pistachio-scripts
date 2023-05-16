@@ -1,24 +1,8 @@
-# pistaschio-manager
-This is the command-line tool to manage Distrobox containers in Pistachio Linux. It's a shell script.
+# pistaschio-scripts
+This repository contains scripts that are being used by the Pistachio Linux project.
 
-## Installation
-To install the tool, just run the following command:
-```bash
-curl -L https://raw.githubusercontent.com/PistachioLinux/pistachio-manager/master/pistachio-manager
-sudo mv pistachio-manager /usr/local/bin
-sudo chmod +x /usr/local/bin/pistachio-manager
-```
+## pistachio-manager
+This command-line tool allows you to easily manage Distrobox contains in Pistachio Linux. [Usage](https://github.com/PistachioLinux/PistachioLinux/wiki)
 
-## Usage
-
-### Create a new container (Fedora)
-```bash
-pistachio-manager create fedora
-```
-
-### Create a new container (Interactive)
-```bash
-pistachio-manager create
-```
-
-This opens a dialog that allows you to choose which distribution you want to create a container for.
+## pistachio-update
+This command-line tool allows you to easily update your Pistachio Linux installation.

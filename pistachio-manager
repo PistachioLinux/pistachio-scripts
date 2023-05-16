@@ -17,6 +17,7 @@ ShowHelp()
     echo "remove - remove a Distrobox container."
     echo "uninstall - uninstall a package from a container."
     echo "version - show the version of pistachio-manager."
+    echo "create-terminal-profile - create a Windows Terminal profile for a container."
 }
 
 ShowInstallHelp() 
@@ -54,6 +55,14 @@ ShowRemoveHelp()
     echo "container - The name of the container to remove."
 }
 
+ShowCreateTerminalProfileHelp()
+{
+    echo "pistachio-manager create-terminal-profile allows you to create a Windows Terminal profile for a Distrobox container."
+    echo
+    echo "Usage: pistachio-manager create-terminal-profile [container]"
+    echo "container - The name of the container to create a profile for."
+}
+
 CreateContainer() 
 {
         param=$1
@@ -69,7 +78,7 @@ CreateContainer()
             if [ $(podman ps -a | grep $param | wc -l) -eq 0 ]
             then
                 echo "Creating container $param..."
-                distrobox create $param
+                distrobox create $param --image archlinux:latest
                 echo "Container $param created."
             else
                 echo "Container $param already exists."
@@ -93,7 +102,7 @@ CreateContainer()
             if [ $(podman ps -a | grep $param | wc -l) -eq 0 ]
             then
                 echo "Creating container $param..."
-                distrobox create $param
+                distrobox create $param --image fedora:latest
                 echo "Container $param created."
             else
                 echo "Container $param already exists."
@@ -111,6 +120,28 @@ CreateContainer()
             echo "Invalid distro. Valid options are \"arch\", \"debian\" and \"fedora\"."
             exit 1
         fi
+}
+
+CreateTerminalProfile()
+{
+    param=$1
+    echo "Creating terminal profile for $param..."
+    echo -e "What's your Windows username?: \c" 
+    read username
+    profileTemplate='{"profiles": [ { "name": "'$1' (on Pistachio)", "commandline": "wsl.exe -d PistachioLinux distrobox enter '$1'", "colorScheme": "Campbell", "icon": "ms-appx:///ProfileIcons/{9acb9455-ca41-5af7-950f-6bca1bc9722f}.png" }]}'
+    fragmentPath="/mnt/c/Users/$username/AppData/Local/Microsoft/Windows Terminal/Fragments/PistachioLinux/$1.json"
+    if [ ! -d "/mnt/c/Users/$username/AppData/Local/Microsoft/Windows Terminal/Fragments/PistachioLinux" ]
+    then
+        sudo mkdir "/mnt/c/Users/$username/AppData/Local/Microsoft/Windows Terminal/Fragments/PistachioLinux"
+    fi
+    if [[ ! -f $fragmentPath ]]
+    then
+        sudo touch "/mnt/c/Users/$username/AppData/Local/Microsoft/Windows Terminal/Fragments/PistachioLinux/$1.json"
+        sudo echo $profileTemplate | jq '.' > "/mnt/c/Users/$username/AppData/Local/Microsoft/Windows Terminal/Fragments/PistachioLinux/$1.json"
+        echo "Profile $1 created. Restart Windows Terminal to see it in the profile dropdown."
+    else 
+        echo "Profile already exists."
+    fi
 }
 
 if [[ "$EUID" = 0 ]]; then
@@ -307,8 +338,32 @@ then
     exit 0
 fi
 
+# pistachio-manager create-terminal-profile
+if [ "$1" = "create-terminal-profile" ]
+then
+    if [ $# -eq 1 ]
+    then
+        ShowCreateTerminalProfileHelp
+    fi
+    if [ $# -eq 2 ]
+    then
+        if [ $2 = "pistachiolinux" -o $2 = "pistachio-linux" ]
+        then
+            echo "You cannot create a terminal profile for Pistachio Linux."
+            exit 1
+        fi
+        if [ $(podman ps -a | grep $2 | wc -l) -eq 0 ]
+        then
+            echo "Container $2 does not exist."
+            exit 1
+        else
+            CreateTerminalProfile $2
+        fi
+    fi
+fi
+
 # if command is not recognized
-if [ "$1" != "install" ] && [ "$1" != "create" ] && [ "$1" != "enter" ] && [ "$1" != "help" ] && [ "$1" != "" ] && [ "$1" != "remove" ] && [ "$1" != "uninstall" ] && [ "$1" != "version" ]
+if [ "$1" != "install" ] && [ "$1" != "create" ] && [ "$1" != "enter" ] && [ "$1" != "help" ] && [ "$1" != "" ] && [ "$1" != "remove" ] && [ "$1" != "uninstall" ] && [ "$1" != "version" ] && [ "$1" != "create-terminal-profile" ]
 then
     echo "Command \"$1\" is not a pistachio-manager command."
     ShowHelp
