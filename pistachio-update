@@ -2,7 +2,7 @@
 
 # Pistachio Linux's update script
 # Licenced under GPLv3
-VERSION="1.0.0"
+VERSION="1.0.1"
 
 # Help function
 
@@ -33,9 +33,9 @@ if [ ! -f /usr/bin/pistachio-manager ]; then
 fi
 
 # Get latest version of latest version of pistachio-manager
-LATEST_VERSION=$(curl -s https://raw.githubusercontent.com/PistachioLinux/pistachio-scripts/master/pistachio-manager) | grep "VERSION=" | cut -d "=" -f 2
+LATEST_VERSION=$(curl -s https://raw.githubusercontent.com/PistachioLinux/pistachio-scripts/master/pistachio-manager) | grep "VERSION=" | cut -d "=" -f 2 | tr -d '"'
 
-. /usr/bin/pistachio-manager
+VERSION=$(pistachio-manager --version | cut -d " " -f 3)
 
 # Check if the latest version is installed
 
@@ -51,9 +51,9 @@ fi
 
 # Check if the latest version is installed
 
-LATEST_UPDATE_VERSION=$(curl -s https://raw.githubusercontent.com/PistachioLinux/pistachio-scripts/master/pistachio-update) | grep "VERSION=" | cut -d "=" -f 2
+LATEST_UPDATE_VERSION=$(curl -s https://raw.githubusercontent.com/PistachioLinux/pistachio-scripts/master/pistachio-update) | grep "VERSION=" | cut -d "=" -f 2 | tr -d '"'
 
-. /usr/bin/pistachio-update
+VERSION=$(pistachio-update --version | cut -d " " -f 3)
 
 if [ "$LATEST_UPDATE_VERSION" == "$VERSION" ]; then
     echo "pistachio-update is up to date."
