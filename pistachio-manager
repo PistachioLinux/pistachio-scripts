@@ -2,7 +2,7 @@
 
 # Pistachio Linux's Distrobox management script
 # Licensed under GPLv3
-VERSION="1.0.1"
+VERSION="1.0.2"
 
 # help functions for pistachio-manager
 
@@ -43,7 +43,7 @@ ShowCreateHelp()
     echo "pistachio-manager create allows you to create a Distrobox container with Pistachio Linux compatibility."
     echo
     echo "Usage: pistachio-manager create [distro]"
-    echo "distro - The name of the container to create. Valid options are \"arch\", \"debian\" and \"fedora\"."
+    echo "distro - The name of the container to create. Valid options are \"arch\", \"debian\" and \"fedora\". Case sensitive."
     echo "You can also not supply a distro name to pick one with an interactive menu."
 }
 
@@ -63,6 +63,15 @@ ShowCreateTerminalProfileHelp()
     echo "container - The name of the container to create a profile for."
 }
 
+PistachioIsntAnOption()
+{
+    if [ $1 = "pistachiolinux" -o $1 = "pistachio-linux" ]
+    then
+        echo "Pistachio Linux is not a valid option."
+        exit 1
+    fi
+}
+
 # checks for dependencies
 DependencyCheck() 
 {
@@ -74,6 +83,32 @@ DependencyCheck()
     fi
 }
 
+CreateContainerTwo()
+{
+    distro=$1
+    image=$2
+    if [ $(podman ps -a | grep $distro | wc -l ) -eq 0 ]
+    then
+        echo "Creating container $distro..."
+        distrobox create $distro --image $image
+        if [ $? -ne 0 ]
+        then
+            echo "Failed to create container $distro."
+            exit 1
+        else 
+            echo "Container $distro created."
+            echo -e "Do you want to create a Windows Terminal profile for $distro? (y/n): \c"
+            read answer
+            if [ $answer = "y" ]
+            then
+                CreateTerminalProfile $distro
+            fi
+        fi
+    else
+        echo "Container $distro already exists."
+    fi
+}
+
 CreateContainer() 
 {
     param=$1
@@ -81,49 +116,22 @@ CreateContainer()
 
     if [ $param = "arch" ]
     then
-        if [ $(podman ps -a | grep $param | wc -l) -eq 0 ]
-        then
-            echo "Creating container $param..."
-            distrobox create $param --image archlinux:latest
-            echo "Container $param created."
-        else
-            echo "Container $param already exists."
-        fi
+        CreateContainerTwo $param "archlinux:latest"
     fi
 
     if [ $param = "debian" ]
     then
-        if [ $(podman ps -a | grep $param | wc -l) -eq 0 ]
-        then
-            echo "Creating container $param..."
-            distrobox create debian --image debian:stable
-            echo "Container $param created."
-        else
-            echo "Container $param already exists."
-        fi
+        CreateContainerTwo $param "debian:latest"
     fi
 
     if [ $param = "fedora" ]
     then
-        if [ $(podman ps -a | grep $param | wc -l) -eq 0 ]
-        then
-            echo "Creating container $param..."
-            distrobox create $param --image fedora:latest
-            echo "Container $param created."
-        else
-            echo "Container $param already exists."
-        fi
+        CreateContainerTwo $param "fedora:latest"
     fi
 
-    if [ $param = "pistachiolinux" -o $param = "pistachio-linux" ]
+    if [ $param != "arch" -a $param != "debian" -a $param != "fedora" ]
     then
-        echo "You cannot create a container for Pistachio Linux."
-        exit 1
-    fi
-
-    if [ $param != "arch" -a $param != "debian" -a $param != "fedora" -a $param != "pistachiolinux" -a $param != "pistachio-linux" ]
-    then
-        echo "Invalid distro. Valid options are \"arch\", \"debian\" and \"fedora\"."
+        echo "Invalid distro $param. Valid options are \"arch\", \"debian\" and \"fedora\". Want more distros? Create an issue on GitHub."
         exit 1
     fi
 }
@@ -138,6 +146,13 @@ CheckContainerExists()
     fi
 }
 
+EnterContainer() 
+{
+    param=$1
+    echo "Entering container $param..."
+    distrobox enter $param
+}
+
 CreateTerminalProfile()
 {
     param=$1
@@ -145,7 +160,7 @@ CreateTerminalProfile()
     CheckContainerExists $param
     echo -e "What's your Windows username?: \c" 
     read username
-    profileTemplate='{"profiles": [ { "name": "'$1' (on Pistachio)", "commandline": "wsl.exe -d PistachioLinux distrobox enter '$1'", "colorScheme": "Campbell", "icon": "ms-appx:///ProfileIcons/{9acb9455-ca41-5af7-950f-6bca1bc9722f}.png" }]}'
+    profileTemplate='{"profiles": [ { "name": "'$1' (on Pistachio)", "commandline": "wsl.exe -d PistachioLinux pistachio-manager enter '$1'", "colorScheme": "Campbell", "icon": "ms-appx:///ProfileIcons/{9acb9455-ca41-5af7-950f-6bca1bc9722f}.png" }]}'
     fragmentPath="/mnt/c/Users/$username/AppData/Local/Microsoft/Windows Terminal/Fragments/PistachioLinux/$1.json"
     if [ ! -d "/mnt/c/Users/$username/AppData/Local/Microsoft/Windows Terminal/Fragments/PistachioLinux" ]
     then
@@ -187,11 +202,7 @@ then
     if [ $# -eq 3 ]
     then
         DependencyCheck
-        if [ $2 = "pistachiolinux" || $2 = "pistachio-linux" ]
-        then
-            echo "If you want to install a package in Pistachio Linux, run \"sudo apt install $3\"."
-            exit 1
-        fi
+        PistachioIsntAnOption $2
         echo "Installing $3 in $2..."
         # check if container exists using podman
         if [ $(podman ps -a | grep $2 | wc -l) -eq 0 ]
@@ -256,13 +267,11 @@ then
         # check if the user pressed enter
         if [ $? -eq 0 ]
         then
-            echo $distro
             CreateContainer $distro
         fi
     fi
     if [ $# -eq 2 ]
     then
-        echo $2
         CreateContainer $2
     fi
 fi
@@ -276,11 +285,7 @@ then
     fi
     if [ $# -eq 2 ]
     then
-        if [ $2 = "pistachiolinux" -o $2 = "pistachio-linux" ]
-        then
-            echo "You cannot remove Pistachio Linux."
-            exit 1
-        fi
+        PistachioIsntAnOption $2
         if [ $(podman ps -a | grep $2 | wc -l) -eq 0 ]
         then
             echo "Container $2 does not exist."
@@ -302,11 +307,7 @@ then
     fi
     if [ $# -eq 2 ]
     then
-        if [ $2 = "pistachiolinux" -o $2 = "pistachio-linux" ]
-        then
-            echo "You cannot uninstall Pistachio Linux."
-            exit 1
-        fi
+        PistachioIsntAnOption $2
         if [ $(podman ps -a | grep $2 | wc -l) -eq 0 ]
         then
             echo "Container $2 does not exist."
@@ -375,18 +376,24 @@ then
     fi
     if [ $# -eq 2 ]
     then
-        if [ $2 = "pistachiolinux" -o $2 = "pistachio-linux" ]
-        then
-            echo "You cannot create a terminal profile for Pistachio Linux."
-            exit 1
-        fi
-        if [ $(podman ps -a | grep $2 | wc -l) -eq 0 ]
-        then
-            echo "Container $2 does not exist."
-            exit 1
-        else
-            CreateTerminalProfile $2
-        fi
+        PistachioIsntAnOption $2
+        CheckContainerExists $2
+        CreateTerminalProfile $2
+    fi
+fi
+
+# pistachio-manager enter
+if [ "$1" = "enter" ]
+then
+    if [ $# -eq 1 ]
+    then
+        ShowEnterHelp
+    fi
+    if [ $# -eq 2 ]
+    then
+        PistachioIsntAnOption $2
+        CheckContainerExists $2
+        EnterContainer $2
     fi
 fi
 
