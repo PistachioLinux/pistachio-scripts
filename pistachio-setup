@@ -3,7 +3,7 @@
 # Pistachio Linux Setup script. This script allows Pistachio Linux users to install things like PowerShell, Caddy etc.
 # Licensed under GPLv3
 
-VERSION="1.0.1"
+VERSION="1.0.2"
 
 echo_info() {
     echo -e "[\e[34mINFO\e[39m] $1"
@@ -48,7 +48,7 @@ fi
 if [[ $INSTALLATION_OPTIONS == "PowerShell" ]]; then
     echo_info "Installing PowerShell..."
     # add Microsoft's repository
-    curl https://packages.microsoft.com/keys/microsoft.asc > | apt-key add -
+    curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
     sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/microsoft-debian-bullseye-prod bullseye main" > /etc/apt/sources.list.d/microsoft.list'
     # install PowerShell
     apt update && apt install -y powershell
