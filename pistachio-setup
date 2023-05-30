@@ -21,12 +21,18 @@ echo_success() {
     echo -e "[\e[32mSUCCESS\e[39m] $1"
 }
 
+if [ "$1" = "version" ]; then
+    echo "pistachio-setup version $VERSION"
+    exit
+fi
+
 # Check if the user is root
 
 if [ "$EUID" -ne 0 ]; then
     echo_info "Please run pistachio-setup as root. (sudo pistachio-setup)"
     exit
 fi
+
 
 # show whiptail dialog with options for the user to choose from
 INSTALLATION_OPTIONS=$(whiptail --title "Pistachio Linux Setup" --backtitle "pistachio-setup version $VERSION" --menu "What do you want to install? (Not enough? Open an issue on GitHub)" 18 100 10 \
