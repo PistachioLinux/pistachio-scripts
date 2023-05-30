@@ -1,0 +1,68 @@
+#!/bin/bash
+
+# Pistachio Linux Setup script. This script allows Pistachio Linux users to install things like PowerShell, Caddy etc.
+# Licensed under GPLv3
+
+VERSION="1.0.0"
+
+echo_info() {
+    echo -e "[\e[34mINFO\e[39m] $1"
+}
+
+echo_warn() {
+    echo -e "[\e[33mWARN\e[39m] $1"
+}
+
+echo_error() {
+    echo -e "[\e[31mERROR\e[39m] $1"
+}
+
+echo_success() {
+    echo -e "[\e[32mSUCCESS\e[39m] $1"
+}
+
+# Check if the user is root
+
+if [ "$EUID" -ne 0 ]; then
+    echo_info "Please run pistachio-setup as root. (sudo pistachio-setup)"
+    exit
+fi
+
+# show whiptail dialog with options for the user to choose from
+INSTALLATION_OPTIONS=$(whiptail --title "Pistachio Linux Setup" --backtitle "pistachio-setup version $VERSION" --menu "What do you want to install?" 18 100 10 \
+    "PowerShell" "Install PowerShell from Microsoft's repositories" \
+    "Caddy" "Install Caddy from the official Caddy repositories" 3>&1 1>&2 2>&3)
+
+if [ -z "$INSTALLATION_OPTIONS" ]; then
+    echo_error "You didn't select anything to install!"
+    exit
+fi
+
+if [[ $INSTALLATION_OPTIONS == "PowerShell" ]]; then
+    echo_info "Installing PowerShell..."
+    # add Microsoft's repository
+    curl https://packages.microsoft.com/keys/microsoft.asc > | apt-key add -
+    sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/microsoft-debian-bullseye-prod bullseye main" > /etc/apt/sources.list.d/microsoft.list'
+    # install PowerShell
+    apt update && apt install -y powershell
+    if [[ $? -ne 0 ]]; then
+        echo_error "There was an error installing PowerShell!"
+        exit
+    fi
+    echo_success "PowerShell installed successfully! You can run PowerShell by entering 'pwsh' in your terminal."
+fi
+
+if [[ $INSTALLATION_OPTIONS == "Caddy" ]]; then
+    echo_info "Installing Caddy..."
+    # add Caddy's repository
+    apt install -y debian-keyring debian-archive-keyring apt-transport-https
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | apt-key add -
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee -a /etc/apt/sources.list.d/caddy-stable.list
+    # install Caddy
+    apt update && apt install -y caddy
+    if [[ $? -ne 0 ]]; then
+        echo_error "There was an error installing Caddy!"
+        exit
+    fi
+    echo_success "Caddy installed successfully!"
+fi
