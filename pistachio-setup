@@ -29,7 +29,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # show whiptail dialog with options for the user to choose from
-INSTALLATION_OPTIONS=$(whiptail --title "Pistachio Linux Setup" --backtitle "pistachio-setup version $VERSION" --menu "What do you want to install?" 18 100 10 \
+INSTALLATION_OPTIONS=$(whiptail --title "Pistachio Linux Setup" --backtitle "pistachio-setup version $VERSION" --menu "What do you want to install? (Not enough? Open an issue on GitHub)" 18 100 10 \
     "PowerShell" "Install PowerShell from Microsoft's repositories" \
     "Caddy" "Install Caddy from the official Caddy repositories" 3>&1 1>&2 2>&3)
 
