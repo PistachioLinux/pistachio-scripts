@@ -3,7 +3,7 @@
 # Pistachio Linux Setup script. This script allows Pistachio Linux users to install things like PowerShell, Caddy etc.
 # Licensed under GPLv3
 
-VERSION="1.0.0"
+VERSION="1.0.1"
 
 echo_info() {
     echo -e "[\e[34mINFO\e[39m] $1"
@@ -37,7 +37,8 @@ fi
 # show whiptail dialog with options for the user to choose from
 INSTALLATION_OPTIONS=$(whiptail --title "Pistachio Linux Setup" --backtitle "pistachio-setup version $VERSION" --menu "What do you want to install? (Not enough? Open an issue on GitHub)" 18 100 10 \
     "PowerShell" "Install PowerShell from Microsoft's repositories" \
-    "Caddy" "Install Caddy from the official Caddy repositories" 3>&1 1>&2 2>&3)
+    "Caddy" "Install Caddy from the official Caddy repositories" \
+    ".NET" "Install .NET from Microsoft's repositories" 3>&1 1>&2 2>&3)
 
 if [ -z "$INSTALLATION_OPTIONS" ]; then
     echo_error "You didn't select anything to install!"
@@ -71,4 +72,19 @@ if [[ $INSTALLATION_OPTIONS == "Caddy" ]]; then
         exit
     fi
     echo_success "Caddy installed successfully!"
+fi
+
+if [[ $INSTALLATION_OPTIONS == ".NET" ]]; then
+    echo_info "Installing .NET..."
+    # add Microsoft's repository
+    wget https://packages.microsoft.com/config/debian/11/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+    dpkg -i packages-microsoft-prod.deb
+    rm packages-microsoft-prod.deb
+    sudo apt-get update && \
+        sudo apt-get install -y dotnet-sdk-7.0 aspnetcore-runtime-7.0
+    if [[ $? -ne 0 ]]; then
+        echo_error "There was an error installing .NET!"
+        exit
+    fi
+    echo_success ".NET installed successfully! You can run .NET by entering 'dotnet' in your terminal."
 fi
