@@ -1,0 +1,91 @@
+#!/bin/bash
+
+# Pistachio Linux's Desktop Installer 
+# Licensed under GPLv3
+
+VERSION="1.0.0"
+
+echo_info()
+{
+  echo -e "[\e[34mINFO\e[39m] $1"
+}
+
+echo_warn()
+{
+  echo -e "[\e[33mWARN\e[39m] $1"
+}
+
+echo_error()
+{
+  echo -e "[\e[31mERROR\e[39m] $1"
+}
+
+echo_success()
+{
+  echo -e "[\e[32mSUCCESS\e[39m] $1"
+}
+
+# Check if the user is root
+if [ "$EUID" -ne 0 ]
+  then echo_info "Please run pistachio-desktop as root. (sudo pistachio-desktop)"
+  exit
+fi
+
+# show whiptail dialog about the script and ask if the user wants to continue
+whiptail --title "Pistachio Linux Desktop Installer" --backtitle "pistachio-desktop version $VERSION" --msgbox "Welcome to the Pistachio Linux Desktop Installer. This script will install everything you need to run a desktop on your Pistachio Linux system. If you have any issues, please report them on the Pistachio Linux GitHub page." 10 60
+
+# ask the user if they want to continue
+if (whiptail --title "Pistachio Linux Desktop Installer" --backtitle "pistachio-desktop version $VERSION" --yesno "Do you want to continue?" 10 60) then
+    echo_info "Starting installation."
+    echo_info "Updating Debian..."
+    # update debian
+    apt update && apt upgrade -y
+    # install xfce4
+    echo_info "Installing xfce4..."
+    apt install task-xfce-desktop -y
+    # install xrdp
+    echo_info "Installing xrdp..."
+    apt install xrdp -y
+    # enable xrdp service
+    echo_info "Enabling xrdp service..."
+    systemctl enable xrdp
+    # ask user for Windows username, so we can create an RDP shortcut on their desktop
+    WINDOWS_USERNAME=$(whiptail --title "Pistachio Linux Desktop Installer" --backtitle "pistachio-desktop version $VERSION" --inputbox "What is your Windows username? (we will make a desktop shortcut for the desktop)" 10 60 3>&1 1>&2 2>&3)
+    # Ask user for their Linux username, for Linux operations
+    LINUX_USERNAME=$(whiptail --title "Pistachio Linux Desktop Installer" --backtitle "pistachio-desktop version $VERSION" --inputbox "What is your Linux username? (we will use this to put files in your user folder etc)" 10 60 3>&1 1>&2 2>&3)
+    # create desktop shortcut
+    echo_info "Creating desktop shortcut..."
+    # use PowerShell on the host machine to create a desktop shortcut
+    if [ ! -d "/mnt/c/Users/$WINDOWS_USERNAME/Desktop" ]; then
+      echo_warn "You don't have a desktop?!?!?!"
+    else 
+      if [ -f "/mnt/c/Users/$WINDOWS_USERNAME/Desktop/Pistachio Linux Desktop.lnk" ]; then
+        echo_info "Shortcut already exists, skipping..."
+      else
+        /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -Command "\$WshShell = New-Object -comObject WScript.Shell; \$Shortcut = \$WshShell.CreateShortcut(\"C:\\Users\\$WINDOWS_USERNAME\\Desktop\\Pistachio Linux Desktop.lnk\"); \$Shortcut.TargetPath = \"C:\\Windows\\System32\\mstsc.exe\"; \$Shortcut.Arguments = \"/v:localhost:3390\"; \$Shortcut.Save()"
+        if [ $? -ne 0 ]; then
+          echo_error "Failed to create desktop shortcut."
+        else
+          echo_success "Desktop shortcut created."
+        fi
+      fi
+    fi
+    echo_info "Changing xrdp port..."
+    # change xrdp port
+    if grep -q "port=3390" /etc/xrdp/xrdp.ini; then
+      echo_info "Port already set, skipping..."
+    else
+      sed -i 's/port=3389/port=3390/g' /etc/xrdp/xrdp.ini
+      if [ $? -ne 0 ]; then
+        echo_error "Failed to change xrdp port."
+      else
+        echo_success "xrdp port changed."
+      fi
+    fi
+    whiptail --title "Pistachio Linux Desktop Installer" --backtitle "pistachio-desktop version $VERSION" --msgbox "Installation complete. Please terminate Pistachio Linux using \"wsl.exe --terminate PistachioLinux\" on your host, and open WSL again. There is a shortcut on your Windows desktop you can use to open an XFCE session." 10 60
+    echo_success "Done! Please terminate Pistachio Linux using \"wsl.exe --terminate PistachioLinux\" on your host, and open Pistachio Linux again. There is a shortcut on your Windows desktop you can use to open an XFCE session."
+    exit
+else
+    echo_info "Exiting..."
+    exit
+fi
