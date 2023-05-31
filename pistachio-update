@@ -2,7 +2,23 @@
 
 # Pistachio Linux's update script
 # Licenced under GPLv3
-VERSION="1.0.7"
+VERSION="1.0.8"
+
+echo_info() {
+    echo -e "[\e[34mINFO\e[39m] $1"
+}
+
+echo_warn() {
+    echo -e "[\e[33mWARN\e[39m] $1"
+}
+
+echo_error() {
+    echo -e "[\e[31mERROR\e[39m] $1"
+}
+
+echo_success() {
+    echo -e "[\e[32mSUCCESS\e[39m] $1"
+}
 
 # Help function
 
@@ -25,32 +41,47 @@ fi
 
 # Check if the script is being run as root
 if [ "$EUID" -ne 0 ]; then
-    echo "Please run this script as root. (sudo pistachio-update)"
+    echo_info "Please run this script as root. (sudo pistachio-update)"
     exit 1
+fi
+
+echo_info "Checking if all dependencies are installed"
+
+# Check if jq is installed
+if [ ! -f /usr/bin/jq ]; then
+    echo_info "jq isn't installed. Installing..."
+    apt update && apt install -y jq
+    if [ $? -ne 0 ]; then
+        echo_error "There was an error installing jq!"
+        exit 1
+    fi
+    echo_success "jq installed successfully!"
+else
+    echo_success "Every dependency is installed!"
 fi
 
 # Check if the latest version is installed
 
-echo "Checking pistachio-update version"
+echo_info "Checking pistachio-update version"
 
 LATEST_UPDATE_VERSION=$(curl -s https://raw.githubusercontent.com/PistachioLinux/pistachio-scripts/master/pistachio-update | grep -m1 "VERSION=" | cut -d "=" -f 2 | tr -d '"')
 
 UPDATE_VERSION=$(pistachio-update version | cut -d " " -f 3)
 
 if [ "$LATEST_UPDATE_VERSION" == "$UPDATE_VERSION" ]; then
-    echo "pistachio-update is up to date."
+    echo_info "pistachio-update is up to date."
 else
-    echo "pistachio-update is not up to date. Updating..."
+    echo_info "pistachio-update is not up to date. Updating..."
     curl -s https://raw.githubusercontent.com/PistachioLinux/pistachio-scripts/master/pistachio-update > /usr/bin/pistachio-update
-    echo "pistachio-update updated. Please run pistachio-update again."
+    echo_success "pistachio-update updated. Please run pistachio-update again."
     exit 0
 fi
 
-echo "Checking pistachio-manager version"
+echo_info "Checking pistachio-manager version"
 
 # Check if pistachio-manager is installed
 if [ ! -f /usr/bin/pistachio-manager ]; then
-    echo "pistachio-manager isn't installed. Installing..."
+    echo_info "pistachio-manager isn't installed. Installing..."
     curl -s https://raw.githubusercontent.com/PistachioLinux/pistachio-scripts/master/pistachio-manager > /usr/bin/pistachio-manager
     chmod +x /usr/bin/pistachio-manager
 else
@@ -62,16 +93,16 @@ else
     # Check if the latest version is installed
 
     if [ "$LATEST_MANAGER_VERSION" == "$MANAGER_VERSION" ]; then
-        echo "pistachio-manager is up to date."
+        echo_success "pistachio-manager is up to date."
     else
-        echo "pistachio-manager is not up to date. Updating..."
+        echo_info "pistachio-manager is not up to date. Updating..."
         curl -s https://raw.githubusercontent.com/PistachioLinux/pistachio-scripts/master/pistachio-manager > /usr/bin/pistachio-manager
-        echo "pistachio-manager updated."
+        echo_success "pistachio-manager updated."
     fi
 fi
 
 if [ ! -f /usr/bin/pistachio-setup ]; then
-    echo "pistachio-setup isn't installed. Installing..."
+    echo_info "pistachio-setup isn't installed. Installing..."
     curl -s https://raw.githubusercontent.com/PistachioLinux/pistachio-scripts/master/pistachio-setup > /usr/bin/pistachio-setup
     chmod +x /usr/bin/pistachio-setup
 else
@@ -83,16 +114,16 @@ else
     # Check if the latest version is installed
 
     if [ "$LATEST_SETUP_VERSION" == "$SETUP_VERSION" ]; then
-        echo "pistachio-setup is up to date."
+        echo_success "pistachio-setup is up to date."
     else
-        echo "pistachio-setup is not up to date. Updating..."
+        echo_info "pistachio-setup is not up to date. Updating..."
         curl -s https://raw.githubusercontent.com/PistachioLinux/pistachio-scripts/master/pistachio-setup > /usr/bin/pistachio-setup
-        echo "pistachio-setup updated."
+        echo_success "pistachio-setup updated."
     fi
 fi
 
-echo "Updating motd"
+echo_info "Updating MOTD"
 
 curl -s https://raw.githubusercontent.com/PistachioLinux/rootfs/master/files/motd > /etc/motd
 
-echo "motd updated."
+echo_success "MOTD updated."
